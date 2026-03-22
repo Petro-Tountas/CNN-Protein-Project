@@ -3,26 +3,26 @@ import numpy as np
 
 def precision_at_L5(prediction, truth):
 
-    # Flatten matrices
-    prediction = prediction.detach().numpy().flatten()
-    truth = truth.numpy().flatten()
+    prediction = prediction.detach().numpy()
+    truth = truth.numpy()
 
-    # Compute protein length
-    L = int(np.sqrt(len(prediction)))
-
-    # Top L/5 predictions
+    L = prediction.shape[0]
     top_k = L // 5
 
-    # Sort predictions from highest to lowest probability
-    sorted_indices = np.argsort(prediction)[::-1]
+    pairs = []
 
-    top_indices = sorted_indices[:top_k]
+    for i in range(L):
+        for j in range(L):
 
-    # Count correct predictions
-    correct = 0
+            # ONLY long-range contacts
+            if abs(i - j) >= 24:
+                pairs.append((prediction[i][j], truth[i][j]))
 
-    for idx in top_indices:
-        if truth[idx] == 1:
-            correct += 1
+    # Sort by predicted probability
+    pairs.sort(key=lambda x: x[0], reverse=True)
+
+    top_pairs = pairs[:top_k]
+
+    correct = sum(1 for p in top_pairs if p[1] == 1)
 
     return correct / top_k
