@@ -6,6 +6,10 @@ def precision_at_L5(prediction, truth):
     prediction = prediction.detach().numpy()
     truth = truth.numpy()
 
+    # Remove batch and channel dimensions if present
+    prediction = prediction.squeeze()
+    truth = truth.squeeze()
+
     L = prediction.shape[0]
     top_k = L // 5
 

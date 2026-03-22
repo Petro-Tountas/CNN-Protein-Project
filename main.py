@@ -6,8 +6,8 @@ import torch.optim as optim
 
 # Import your modules
 from model import ContactCNN
-from dataset import sequence_to_features, pdb_to_contact_map
-from evaluate import precision_at_l5
+from dataset import sequence_to_pair_features, pdb_to_contact_map
+from evaluate import precision_at_L5
 
 
 def main():
@@ -26,7 +26,7 @@ def main():
    
     print("\nLoading training data...")
 
-    X_train = sequence_to_features(train_pdb).unsqueeze(0)
+    X_train = sequence_to_pair_features(train_pdb).unsqueeze(0)
     y_train = pdb_to_contact_map(train_pdb).unsqueeze(0)
 
     print("Train input shape:", X_train.shape)
@@ -34,7 +34,7 @@ def main():
 
     print("\nLoading test data...")
 
-    X_test = sequence_to_features(test_pdb).unsqueeze(0)
+    X_test = sequence_to_pair_features(test_pdb).unsqueeze(0)
     y_test = pdb_to_contact_map(test_pdb).unsqueeze(0)
 
     print("Test input shape:", X_test.shape)
@@ -89,7 +89,7 @@ def main():
         predictions = model(X_test)
 
     # Compute precision@L/5
-    precision = precision_at_l5(predictions, y_test)
+    precision = precision_at_L5(predictions, y_test)
 
     print("\nFinal Results:")
     print(f"Precision @ L/5: {precision:.4f}")

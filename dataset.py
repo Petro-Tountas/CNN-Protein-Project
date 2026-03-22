@@ -22,25 +22,19 @@ def one_hot_encode(sequence):
 
 
 # Create pairwise feature tensor (NxN)
-def sequence_to_pair_features(sequence):
-
-    seq_encoded = one_hot_encode(sequence)
+def sequence_to_features(pdb_file):
+    sequence = get_sequence_from_pdb(pdb_file)  
     L = len(sequence)
 
-    # 21 channels: 20 for amino acids + 1 for distance
-    pair_tensor = np.zeros((21, L, L))
+    # 21 channels (20 amino acids + 1 padding)
+    features = torch.zeros((21, L, L))
 
+    # simple encoding: pairwise identity
     for i in range(L):
         for j in range(L):
+            features[0, i, j] = 1 if sequence[i] == sequence[j] else 0
 
-            # Copy features of residue i
-            pair_tensor[:20, i, j] = seq_encoded[i]
-
-            # Add normalized sequence distance
-            pair_tensor[20, i, j] = abs(i - j) / L
-
-    return torch.tensor(pair_tensor).float()
-
+    return features
 
 # Convert PDB file into contact map
 def pdb_to_contact_map(pdb_file, threshold=8.0):

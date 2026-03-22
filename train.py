@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.optim
 
 from model import ContactCNN
 from dataset import sequence_to_pair_features, pdb_to_contact_map
@@ -33,6 +34,9 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 # Training loop
 for epoch in range(50):
 
+    # Clear gradients
+    optimizer.zero_grad()
+
     # Forward pass
     prediction = model(x)
 
@@ -40,7 +44,6 @@ for epoch in range(50):
     loss = criterion(prediction, y)
 
     # Backpropagation
-    optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 
