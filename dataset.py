@@ -1,68 +1,72 @@
+# dataset.py
+
 import torch
 import numpy as np
 from Bio.PDB import PDBParser
 
 
-# Convert amino acid sequence into one-hot encoding
-def one_hot_encode(sequence):
+def get_sequence_from_pdb(pdb_file):
+    parser = PDBParser(QUIET=True)
+    structure = parser.get_structure("protein", pdb_file)
 
-    amino_acids = "ACDEFGHIKLMNPQRSTVWY"
-    encoding = []
+    residues = []
+    for model in structure:
+        for chain in model:
+            for res in chain:
+                if res.get_id()[0] == " ":
+                    residues.append(res)
 
-    for aa in sequence:
-        vector = [0]*20
+    sequence = []
+    for res in residues:
+        sequence.append(res.get_resname())
 
-        # Set the correct index to 1
-        if aa in amino_acids:
-            vector[amino_acids.index(aa)] = 1
-
-        encoding.append(vector)
-
-    return np.array(encoding)
+    return sequence, residues
 
 
-# Create pairwise feature tensor (NxN)
 def sequence_to_features(pdb_file):
-    sequence = get_sequence_from_pdb(pdb_file)  
+    sequence, _ = get_sequence_from_pdb(pdb_file)
     L = len(sequence)
 
-    # 21 channels (20 amino acids + 1 padding)
+    # 21 channels (simple encoding)
     features = torch.zeros((21, L, L))
 
-    # simple encoding: pairwise identity
     for i in range(L):
         for j in range(L):
+            # simple identity feature
             features[0, i, j] = 1 if sequence[i] == sequence[j] else 0
 
     return features
 
-# Convert PDB file into contact map
-def pdb_to_contact_map(pdb_file, threshold=8.0):
 
+def pdb_to_contact_map(pdb_file, threshold=8.0):
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure("protein", pdb_file)
 
-    residues = list(structure.get_residues())
-    coords = []
+    residues = []
+    for model in structure:
+        for chain in model:
+            for res in chain:
+                if res.get_id()[0] == " ":
+                    residues.append(res)
 
-    # Extract alpha carbon coordinates
-    for res in residues:
-        if "CA" in res:
-            coords.append(res["CA"].coord)
-
-    coords = np.array(coords)
-    L = len(coords)
-
+    L = len(residues)
     contact_map = np.zeros((L, L))
 
-    # Compute pairwise distances
+    coords = []
+
+    for res in residues:
+        if "CB" in res:
+            coords.append(res["CB"].get_coord())
+        elif "CA" in res:
+            coords.append(res["CA"].get_coord())
+        else:
+            coords.append(None)
+
     for i in range(L):
         for j in range(L):
-            dist = np.linalg.norm(coords[i] - coords[j])
+            if coords[i] is not None and coords[j] is not None:
+                dist = np.linalg.norm(coords[i] - coords[j])
+                if dist < threshold:
+                    contact_map[i, j] = 1
 
-            # If distance < 8 Å → contact
-            if dist < threshold:
-                contact_map[i, j] = 1
-
-    # Add channel dimension (1, L, L)
-    return torch.tensor(contact_map).unsqueeze(0).float()
+    return torch.tensor(contact_map, dtype=torch.float32).unsqueeze(0)

@@ -1,101 +1,96 @@
-# main.py
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# Import your modules
+from dataset import sequence_to_features, pdb_to_contact_map
 from model import ContactCNN
-from dataset import sequence_to_pair_features, pdb_to_contact_map
 from evaluate import precision_at_L5
 
 
 def main():
-
-   
-    # 1. CHOOSE PROTEINS
+    
+    # SELECT FILES
     
     train_pdb = "1CRN.pdb"
     test_pdb = "1UBQ.pdb"
 
-    print("Training on:", train_pdb)
-    print("Testing on:", test_pdb)
+    print(f"Training on: {train_pdb}")
+    print(f"Testing on: {test_pdb}")
 
   
-    # 2. LOAD DATA
-   
-    print("\nLoading training data...")
+ # LOAD TRAIN DATA
 
-    X_train = sequence_to_pair_features(train_pdb).unsqueeze(0)
-    y_train = pdb_to_contact_map(train_pdb).unsqueeze(0)
+    X_train = sequence_to_features(train_pdb).unsqueeze(0)
+    y_train = pdb_to_contact_map(train_pdb)
+
+    if y_train.dim() == 3:
+        y_train = y_train.unsqueeze(1)
 
     print("Train input shape:", X_train.shape)
     print("Train target shape:", y_train.shape)
 
-    print("\nLoading test data...")
 
-    X_test = sequence_to_pair_features(test_pdb).unsqueeze(0)
-    y_test = pdb_to_contact_map(test_pdb).unsqueeze(0)
+
+ # LOAD TEST DATA
+
+    X_test = sequence_to_features(test_pdb).unsqueeze(0)
+    y_test = pdb_to_contact_map(test_pdb)
+
+    if y_test.dim() == 3:
+        y_test = y_test.unsqueeze(1)
 
     print("Test input shape:", X_test.shape)
     print("Test target shape:", y_test.shape)
 
-    
+
+
+ # MODEL
+
     model = ContactCNN()
 
-    # Loss function (binary classification)
     criterion = nn.BCELoss()
-
-    # Optimizer
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    # 
-    # 4. TRAIN MODEL
-    #
+   
+ # TRAINING LOOP
+    
     print("\nStarting training...\n")
 
     epochs = 50
 
     for epoch in range(epochs):
-
         model.train()
 
+        preds = model(X_train)
+
+        loss = criterion(preds, y_train)
+
         optimizer.zero_grad()
-
-        # Forward pass
-        predictions = model(X_train)
-
-        # Compute loss
-        loss = criterion(predictions, y_train)
-
-        # Backpropagation
         loss.backward()
         optimizer.step()
 
-        # Print progress
         if epoch % 5 == 0:
             print(f"Epoch {epoch}/{epochs} | Loss: {loss.item():.4f}")
 
-    print("\nTraining complete.")
+    print("\nTraining complete.\n")
 
     
-    # 5. EVALUATE MODEL
+    # EVALUATION
     
-    print("\nEvaluating model...")
-
     model.eval()
 
     with torch.no_grad():
-        predictions = model(X_test)
+        preds = model(X_test)
 
-    # Compute precision@L/5
-    precision = precision_at_L5(predictions, y_test)
+    # remove batch + channel for evaluation
+    preds = preds.squeeze()
+    y_test_eval = y_test.squeeze()
 
-    print("\nFinal Results:")
-    print(f"Precision @ L/5: {precision:.4f}")
+    precision = precision_at_L5(preds, y_test_eval)
 
+    print("Final Results:")
+    print("Precision @ L/5:", precision)
 
-# RUN PROGRAM
 
 if __name__ == "__main__":
     main()
